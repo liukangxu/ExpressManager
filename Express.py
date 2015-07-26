@@ -9,9 +9,10 @@ class ExpressQuery(Frame):
     def __init__(self, master):
         Frame.__init__(self, master)
         self.root = master
-        self.root.bind_all("<F5>", self.update_all_posts)
+        self.root.bind_all('<F5>', self.update_all_posts)
         self.all_posts = {}  # 运单列表
-        self.root.title("快递助手")
+        self.root.title('快递助手 v1.0')
+        self.root.iconbitmap('logo.ico')
         self.root.resizable(width=False, height=False)
 
         self.auto_company_url = 'http://www.kuaidi100.com/autonumber/autoComNum?text='
@@ -27,19 +28,19 @@ class ExpressQuery(Frame):
         parent_frame.grid(padx=10, pady=10, stick=E + W + N + S)
 
         add_post_group = Frame(parent_frame)
-        post_id_label = Label(add_post_group, text="运单号:")
+        post_id_label = Label(add_post_group, text='运单号:')
         self.post_id_var = StringVar()  # 运单号
         self.post_id_field = Entry(add_post_group, width=20, textvariable=self.post_id_var)
-        self.post_id_field.bind("<Return>", self.add_post)
+        self.post_id_field.bind('<Return>', self.add_post)
         post_note_label = Label(add_post_group, text='备注:')
         self.post_note_var = StringVar()  # 运单注释
         post_note_field = Entry(add_post_group, width=20, textvariable=self.post_note_var)
-        post_note_field.bind("<Return>", self.add_post)
+        post_note_field.bind('<Return>', self.add_post)
         post_company_label = Label(add_post_group, text='公司：')
         self.post_company_name_var = StringVar()
         self.post_company_field = Combobox(add_post_group, textvariable=self.post_company_name_var,
                                            values=list(self.company_names.keys()), width=12)
-        post_add_button = Button(add_post_group, text="添加", width=10, command=self.add_post)
+        post_add_button = Button(add_post_group, text='添加', width=10, command=self.add_post)
 
         post_id_label.grid(row=0, column=0)
         self.post_id_field.grid(row=0, column=1)
@@ -67,12 +68,12 @@ class ExpressQuery(Frame):
         self.posts.heading('last_update', text='最后更新')
         self.posts.bind('<<TreeviewSelect>>', self.show_post_detail)
         self.posts.bind('<Delete>', self.remove_post)
-        self.post_detail = ScrolledText(show_posts_group, bg="white", width=92, height=16, state=DISABLED)  # 运单记录文本框
+        self.post_detail = ScrolledText(show_posts_group, bg='white', width=92, height=16, state=DISABLED)  # 运单记录文本框
         self.posts.grid(row=0, column=0, sticky=W + N + S)
         self.x_scrollbar.grid(row=1, column=0, sticky=E + W)
         self.y_scrollbar.grid(row=0, column=1, sticky=N + S)
         self.post_detail.grid(row=2, column=0, sticky=W + N + S, padx=(0, 10))
-        status_label = Label(parent_frame, text="F5 更新全部运单动态")
+        status_label = Label(parent_frame, text='F5 更新全部运单动态')
 
         add_post_group.grid(row=0, column=0)
         show_posts_group.grid(row=1, column=0)
@@ -115,7 +116,7 @@ class ExpressQuery(Frame):
         post = {'post_id': self.post_id_var.get(), 'company_code': company_code,
                 'company_name': self.company_names[company_code], 'note': self.post_note_var.get()}
         self.all_posts[self.post_id_var.get()] = post
-        self.posts.insert('', 0, self.post_id_var.get(), text="%s" % self.post_id_var.get())  # 将单号加入列表
+        self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())  # 将单号加入列表
         self.update_post_detail(post)
         self.posts.selection_set(self.post_id_var.get())
         self.save_history()
@@ -166,10 +167,10 @@ class ExpressQuery(Frame):
         self.post_detail.config(state=NORMAL)  # 允许编辑消息记录文本框
         self.post_detail.delete('1.0', END)
         for x in self.all_posts[self.posts.selection()[0]]['data']:
-            self.post_detail.insert("end", x['time'] + '\t' + x['context'] + '\n')
+            self.post_detail.insert('end', x['time'] + '\t' + x['context'] + '\n')
         self.post_detail.config(state=DISABLED)  # 禁止编辑消息记录文本框
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     root = Tk()
     app = ExpressQuery(root)
     root.mainloop()
