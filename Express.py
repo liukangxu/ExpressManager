@@ -3,6 +3,7 @@ from tkinter.scrolledtext import *
 from tkinter.ttk import *
 import json
 import urllib.request
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 class ExpressQuery(Frame):
@@ -138,8 +139,14 @@ class ExpressQuery(Frame):
 
     # 更新全部运单动态
     def update_all_posts(self, event=NONE):
+        pool = ThreadPool(4)
+        posts = list(self.all_posts.values())
+        pool.map(self.update_post_detail, posts)
+        pool.close()
+        pool.join()
         for post in self.all_posts.values():
-            self.update_post_detail(post)
+            self.posts.item(post['post_id'],
+                            values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
         self.save_history()
 
     # 更新单个运单状态
@@ -159,8 +166,6 @@ class ExpressQuery(Frame):
                                                             'context': '单号不存在或者已经过期'}]
                 self.all_posts[post['post_id']]['state'] = '-1'
                 self.all_posts[post['post_id']]['last_update'] = ''
-        self.posts.item(post['post_id'],
-                        values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
 
     # 显示运单详情
     def show_post_detail(self, event=NONE):
