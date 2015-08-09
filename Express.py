@@ -12,7 +12,7 @@ class ExpressQuery(Frame):
         self.root = master
         self.root.bind_all('<F5>', self.update_all_posts)
         self.all_posts = {}  # 运单列表
-        self.root.title('快递助手 v1.0')
+        self.root.title('快递助手 v1.1')
         self.root.iconbitmap('logo.ico')
         self.root.resizable(width=False, height=False)
 
@@ -40,7 +40,7 @@ class ExpressQuery(Frame):
         post_company_label = Label(add_post_group, text='公司：')
         self.post_company_name_var = StringVar()
         self.post_company_field = Combobox(add_post_group, textvariable=self.post_company_name_var,
-                                           values=list(self.company_names.keys()), width=12)
+                                           values=list(self.company_names.values()), width=12)
         post_add_button = Button(add_post_group, text='添加', width=10, command=self.add_post)
 
         post_id_label.grid(row=0, column=0)
@@ -94,7 +94,7 @@ class ExpressQuery(Frame):
                                           self.state[self.all_posts[post_id]['state']],
                                           self.all_posts[post_id]['last_update']))
         except ValueError:
-            print('error')
+            print('No record found')
 
     # 保存运单记录
     def save_history(self):
@@ -117,8 +117,12 @@ class ExpressQuery(Frame):
         post = {'post_id': self.post_id_var.get(), 'company_code': company_code,
                 'company_name': self.company_names[company_code], 'note': self.post_note_var.get()}
         self.all_posts[self.post_id_var.get()] = post
-        self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())  # 将单号加入列表
+        try:
+            self.posts.index(post['post_id'])
+        except TclError:
+            self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())  # 将单号加入列表
         self.update_post_detail(post)
+        self.posts.item(self.post_id_var.get(), values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
         self.posts.selection_set(self.post_id_var.get())
         self.save_history()
 
@@ -169,9 +173,14 @@ class ExpressQuery(Frame):
 
     # 显示运单详情
     def show_post_detail(self, event=NONE):
+        selected_post = self.all_posts[self.posts.selection()[0]]
+        self.post_id_var.set(selected_post['post_id'])
+        self.post_note_var.set(selected_post['note'])
+        self.post_company_name_var.set(selected_post['company_name'])
+
         self.post_detail.config(state=NORMAL)  # 允许编辑消息记录文本框
         self.post_detail.delete('1.0', END)
-        for x in self.all_posts[self.posts.selection()[0]]['data']:
+        for x in selected_post['data']:
             self.post_detail.insert('end', x['time'] + '\t' + x['context'] + '\n')
         self.post_detail.config(state=DISABLED)  # 禁止编辑消息记录文本框
 
