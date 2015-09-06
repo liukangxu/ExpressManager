@@ -1,9 +1,15 @@
-Express Manager
-==========
+# Express Manager
 
-Using Kuaidi100 API to manage your expresses.
+A simple tool that using Kuaidi100's API to manage your expresses.
 
-Author
-----------
+## Install
+
+	git clone https://github.com/liukangxu/ExpressManager.git
+
+## ScreenShot
+
+![](https://raw.githubusercontent.com/liukangxu/ExpressManager/master/ScreenShot/Main.PNG)
+
+##Author
 
 [@liukangxu](https://twitter.com/liukangxu)

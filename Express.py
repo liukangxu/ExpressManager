@@ -1,8 +1,9 @@
-from tkinter import *
-from tkinter.scrolledtext import *
-from tkinter.ttk import *
 import json
-import urllib.request
+import tkinter
+from urllib import request
+from tkinter import N, E, S, W
+from tkinter.scrolledtext import ScrolledText
+from tkinter.ttk import *
 from multiprocessing.dummy import Pool as ThreadPool
 
 
@@ -11,8 +12,9 @@ class ExpressQuery(Frame):
         Frame.__init__(self, master)
         self.root = master
         self.root.bind_all('<F5>', self.update_all_posts)
+        self.root.bind_all('<Escape>', self.clear_input)
         self.all_posts = {}  # 运单列表
-        self.root.title('快递助手 v1.1')
+        self.root.title('快递助手 v1.2')
         self.root.iconbitmap('logo.ico')
         self.root.resizable(width=False, height=False)
 
@@ -30,18 +32,19 @@ class ExpressQuery(Frame):
 
         add_post_group = Frame(parent_frame)
         post_id_label = Label(add_post_group, text='运单号:')
-        self.post_id_var = StringVar()  # 运单号
+        self.post_id_var = tkinter.StringVar()  # 运单号
         self.post_id_field = Entry(add_post_group, width=20, textvariable=self.post_id_var)
-        self.post_id_field.bind('<Return>', self.add_post)
+        self.post_id_field.bind('<Return>', self.handle_add_post)
         post_note_label = Label(add_post_group, text='备注:')
-        self.post_note_var = StringVar()  # 运单注释
+        self.post_note_var = tkinter.StringVar()  # 运单注释
         post_note_field = Entry(add_post_group, width=20, textvariable=self.post_note_var)
-        post_note_field.bind('<Return>', self.add_post)
+        post_note_field.bind('<Return>', self.handle_add_post)
         post_company_label = Label(add_post_group, text='公司：')
-        self.post_company_name_var = StringVar()
+        self.post_company_name_var = tkinter.StringVar()
         self.post_company_field = Combobox(add_post_group, textvariable=self.post_company_name_var,
                                            values=list(self.company_names.values()), width=12)
-        post_add_button = Button(add_post_group, text='添加', width=10, command=self.add_post)
+        post_add_button = Button(add_post_group, text='添加', width=10, command=self.handle_add_post)
+        clear_input_button = Button(add_post_group, text='清空', width=10, command=self.clear_input)
 
         post_id_label.grid(row=0, column=0)
         self.post_id_field.grid(row=0, column=1)
@@ -50,12 +53,14 @@ class ExpressQuery(Frame):
         post_company_label.grid(row=0, column=4)
         self.post_company_field.grid(row=0, column=5)
         post_add_button.grid(row=0, column=6, padx=5)
+        clear_input_button.grid(row=0, column=7, padx=5)
         self.post_id_field.focus_set()
+
         show_posts_group = Frame(parent_frame)
         self.posts = Treeview(show_posts_group, height=10, selectmode='browse',
                               columns=('note', 'company_name', 'state', 'last_update'))  # 运单列表框
-        self.x_scrollbar = Scrollbar(show_posts_group, orient=HORIZONTAL, command=self.posts.xview)
-        self.y_scrollbar = Scrollbar(show_posts_group, orient=VERTICAL, command=self.posts.yview)
+        self.x_scrollbar = Scrollbar(show_posts_group, orient=tkinter.HORIZONTAL, command=self.posts.xview)
+        self.y_scrollbar = Scrollbar(show_posts_group, orient=tkinter.VERTICAL, command=self.posts.yview)
         self.posts.config(xscroll=self.x_scrollbar.set, yscroll=self.y_scrollbar.set)
         self.posts.column('#0', width=130)
         self.posts.heading('#0', text='运单号')
@@ -69,7 +74,7 @@ class ExpressQuery(Frame):
         self.posts.heading('last_update', text='最后更新')
         self.posts.bind('<<TreeviewSelect>>', self.show_post_detail)
         self.posts.bind('<Delete>', self.remove_post)
-        self.post_detail = ScrolledText(show_posts_group, bg='white', width=92, height=16, state=DISABLED)  # 运单记录文本框
+        self.post_detail = ScrolledText(show_posts_group, bg='white', width=92, height=16, state=tkinter.DISABLED)
         self.posts.grid(row=0, column=0, sticky=W + N + S)
         self.x_scrollbar.grid(row=1, column=0, sticky=E + W)
         self.y_scrollbar.grid(row=0, column=1, sticky=N + S)
@@ -82,19 +87,22 @@ class ExpressQuery(Frame):
 
         self.get_history()
 
-    # 获取运单记录
+    # 获取历史记录
     def get_history(self):
         try:
             with open('history.json', 'r', encoding='utf-8') as f:
                 self.all_posts = json.loads(f.read())
             for post_id in self.all_posts:
-                self.posts.insert('', 0, post_id, text=post_id,
+                self.posts.insert('', 0, post_id,
+                                  text=post_id,
                                   values=(self.all_posts[post_id]['note'],
                                           self.all_posts[post_id]['company_name'],
                                           self.state[self.all_posts[post_id]['state']],
                                           self.all_posts[post_id]['last_update']))
         except ValueError:
-            print('No record found')
+            with open('history.json', 'w', encoding='utf-8') as f:
+                json.dump(self.all_posts, f)
+            print('No history record found')
 
     # 保存运单记录
     def save_history(self):
@@ -102,47 +110,57 @@ class ExpressQuery(Frame):
             json.dump(self.all_posts, f)
 
     # 新增运单
-    def add_post(self, event=NONE):
+    def handle_add_post(self, event=None):
         if self.post_id_var.get() == '':
             return
-        if self.post_company_name_var.get() == '':
+
+        if self.post_company_name_var.get():
+            company_code = self.company_codes[self.post_company_name_var.get()]
+        else:
             try:
-                with urllib.request.urlopen(self.auto_company_url + self.post_id_var.get()) as response:
+                with request.urlopen(self.auto_company_url + self.post_id_var.get()) as response:
                     company_code = json.loads(response.read().decode())['auto'][0]['comCode']
             except IndexError:
                 return
-        else:
-            company_code = self.company_codes[self.post_company_name_var.get()]
 
-        post = {'post_id': self.post_id_var.get(), 'company_code': company_code,
-                'company_name': self.company_names[company_code], 'note': self.post_note_var.get()}
-        self.all_posts[self.post_id_var.get()] = post
+        post = {
+            'post_id': self.post_id_var.get(),
+            'company_code': company_code,
+            'company_name': self.company_names[company_code],
+            'note': self.post_note_var.get()}
+
+        self.all_posts[post['post_id']] = post
+
         try:
             self.posts.index(post['post_id'])
-        except TclError:
-            self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())  # 将单号加入列表
+        except tkinter.TclError:
+            self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())
         self.update_post_detail(post)
-        self.posts.item(self.post_id_var.get(), values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
+        self.posts.item(self.post_id_var.get(),
+                        values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
         self.posts.selection_set(self.post_id_var.get())
         self.save_history()
+        self.clear_input()
 
-        # 清空输入框
+    # 清空输入框
+    def clear_input(self, event=None):
         self.post_id_var.set('')
         self.post_note_var.set('')
         self.post_company_name_var.set('')
         self.post_id_field.focus_set()
 
     # 移除运单
-    def remove_post(self, event=NONE):
+    def remove_post(self, event=None):
         self.all_posts.pop(self.posts.selection()[0])
         self.posts.delete(self.posts.selection()[0])
-        self.post_detail.config(state=NORMAL)
-        self.post_detail.delete('1.0', END)
-        self.post_detail.config(state=DISABLED)
+        self.post_detail.config(state=tkinter.NORMAL)
+        self.post_detail.delete('1.0', tkinter.END)
+        self.post_detail.config(state=tkinter.DISABLED)
         self.save_history()
+        self.clear_input()
 
     # 更新全部运单动态
-    def update_all_posts(self, event=NONE):
+    def update_all_posts(self, event=None):
         pool = ThreadPool(4)
         posts = list(self.all_posts.values())
         pool.map(self.update_post_detail, posts)
@@ -154,10 +172,10 @@ class ExpressQuery(Frame):
         self.save_history()
 
     # 更新单个运单状态
-    def update_post_detail(self, post=NONE):
-        if post == NONE:
+    def update_post_detail(self, post=None):
+        if not post:
             post = self.all_posts[self.posts.selection()[0]]
-        with urllib.request.urlopen(self.query_url + 'type=' + post['company_code'] + '&postid=' + post['post_id'])\
+        with request.urlopen(self.query_url + 'type=' + post['company_code'] + '&postid=' + post['post_id'])\
                 as response:
             obj = json.loads(response.read().decode())
             self.all_posts[post['post_id']]['status'] = obj['status']
@@ -172,19 +190,19 @@ class ExpressQuery(Frame):
                 self.all_posts[post['post_id']]['last_update'] = ''
 
     # 显示运单详情
-    def show_post_detail(self, event=NONE):
+    def show_post_detail(self, event=None):
         selected_post = self.all_posts[self.posts.selection()[0]]
         self.post_id_var.set(selected_post['post_id'])
         self.post_note_var.set(selected_post['note'])
         self.post_company_name_var.set(selected_post['company_name'])
 
-        self.post_detail.config(state=NORMAL)  # 允许编辑消息记录文本框
-        self.post_detail.delete('1.0', END)
+        self.post_detail.config(state=tkinter.NORMAL)  # 允许编辑消息记录文本框
+        self.post_detail.delete('1.0', tkinter.END)
         for x in selected_post['data']:
             self.post_detail.insert('end', x['time'] + '\t' + x['context'] + '\n')
-        self.post_detail.config(state=DISABLED)  # 禁止编辑消息记录文本框
+        self.post_detail.config(state=tkinter.DISABLED)  # 禁止编辑消息记录文本框
 
 if __name__ == '__main__':
-    root = Tk()
+    root = tkinter.Tk()
     app = ExpressQuery(root)
     root.mainloop()
