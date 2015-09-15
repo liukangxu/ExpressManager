@@ -1,5 +1,6 @@
 import json
 import tkinter
+import threading
 from urllib import request
 from tkinter import N, E, S, W
 from tkinter.scrolledtext import ScrolledText
@@ -135,12 +136,16 @@ class ExpressQuery(Frame):
             self.posts.index(post['post_id'])
         except tkinter.TclError:
             self.posts.insert('', 0, self.post_id_var.get(), text='%s' % self.post_id_var.get())
-        self.update_post_detail(post)
-        self.posts.item(self.post_id_var.get(),
-                        values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
-        self.posts.selection_set(self.post_id_var.get())
-        self.save_history()
+
+        handle_add_post = threading.Thread(target=self.handle_add_post_thread, args=(post,))
+        handle_add_post.start()
+
         self.clear_input()
+
+    def handle_add_post_thread(self, post):
+        self.update_post_detail_thread(post)
+        self.posts.selection_set(post['post_id'])
+        self.save_history()
 
     # 清空输入框
     def clear_input(self, event=None):
@@ -161,18 +166,23 @@ class ExpressQuery(Frame):
 
     # 更新全部运单动态
     def update_all_posts(self, event=None):
+        update_all_posts = threading.Thread(target=self.update_all_posts_thread)
+        update_all_posts.start()
+
+    def update_all_posts_thread(self):
         pool = ThreadPool(4)
         posts = list(self.all_posts.values())
         pool.map(self.update_post_detail, posts)
         pool.close()
         pool.join()
-        for post in self.all_posts.values():
-            self.posts.item(post['post_id'],
-                            values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
         self.save_history()
 
     # 更新单个运单状态
     def update_post_detail(self, post=None):
+        update_post_detail  = threading.Thread(target=self.update_post_detail_thread)
+        update_post_detail.start()
+
+    def update_post_detail_thread(self, post=None):
         if not post:
             post = self.all_posts[self.posts.selection()[0]]
         with request.urlopen(self.query_url + 'type=' + post['company_code'] + '&postid=' + post['post_id'])\
@@ -188,6 +198,8 @@ class ExpressQuery(Frame):
                                                             'context': '单号不存在或者已经过期'}]
                 self.all_posts[post['post_id']]['state'] = '-1'
                 self.all_posts[post['post_id']]['last_update'] = ''
+        self.posts.item(post['post_id'],
+                        values=(post['note'], post['company_name'], self.state[post['state']], post['last_update']))
 
     # 显示运单详情
     def show_post_detail(self, event=None):
